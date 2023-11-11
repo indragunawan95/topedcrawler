@@ -11,7 +11,6 @@ type Config struct {
 	HTTP `yaml:"http"`
 	Log  `yaml:"logger"`
 	DB   `yaml:"db"`
-	JWT  `yaml:"jwt"`
 }
 
 type App struct {
@@ -27,13 +26,6 @@ type Log struct {
 	Level string `env-required:"true" yaml:"log_level"   env:"LOG_LEVEL"`
 }
 
-type JWT struct {
-	Key string `env-required:"true" yaml:"jwt_key"   env:"JWT_KEY"`
-	// Expiration in second
-	Expiration int32  `env-required:"true" yaml:"jwt_expiration"   env:"JWT_EXPIRATION"`
-	Issuer     string `env-required:"true" yaml:"jwt_issuer"   env:"JWT_ISSUER"`
-}
-
 type DB struct {
 	Host     string `env-required:"true" yaml:"db_host"   env:"DB_HOST"`
 	Port     string `env-required:"true" yaml:"db_port"   env:"DB_PORT"`
@@ -45,7 +37,7 @@ type DB struct {
 func NewConfig() (*Config, error) {
 	cfg := &Config{}
 
-	err := cleanenv.ReadConfig("./config/config.yaml", cfg)
+	err := cleanenv.ReadConfig("./files/config/config.yaml", cfg)
 	if err != nil {
 		return nil, fmt.Errorf("config error: %w", err)
 	}

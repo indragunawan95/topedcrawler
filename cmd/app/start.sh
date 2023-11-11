@@ -1,5 +1,5 @@
 # for dev only
-source ./files/etc/environment/env.sh
+source ./files/etc/env.sh
 
 docker compose up -d
 

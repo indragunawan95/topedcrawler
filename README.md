@@ -4,3 +4,11 @@ entity: domain entity and gorm model
 repo: data layer
 usecase: bussiness logic
 handler: transport or presentation layer
+
+Entity: This layer would define the structure of the data that you intend to scrape. For instance, if you're scraping product information, you might have a Product entity with fields like Name, Price, Description, etc.
+
+Repo (Repository): The web scraper itself would most likely reside within the repo directory. The scraper would be responsible for the implementation of interfaces defined in the repo to fetch data from the web. The repository would also handle the conversion of the scraped data into the format expected by your domain entities.
+
+Usecase (Business Logic): The usecase layer would define interfaces that your application's service layer will implement. It could invoke the web scraper through the repository layer interface to obtain data and then perform any necessary business logic on this data, such as filtering, validation, or aggregation.
+
+Handler (Transport or Presentation Layer): The handler layer would not typically contain the scraper itself but would call the usecase layer to initiate scraping based on a user request (like an API call or a cron job initiation). This layer is responsible for dealing with client-side operations, such as handling HTTP requests and responses, and it would translate the results from the usecase layer into a format suitable for the client.

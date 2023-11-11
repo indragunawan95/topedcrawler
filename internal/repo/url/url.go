@@ -1,4 +1,4 @@
-package product
+package url
 
 import (
 	"context"
@@ -18,14 +18,14 @@ func New(db *gorm.DB) *ProductRepo {
 	}
 }
 
-func (pr ProductRepo) CreateProduct(ctx context.Context, input entity.Product) (entity.Product, error) {
+func (pr ProductRepo) CreateUrl(ctx context.Context, input entity.Url) (entity.Url, error) {
 	input.ID = uuid.New().String()
 	model := input.ToModel()
 
 	err := pr.db.WithContext(ctx).Create(&model).Error
 
 	if err != nil {
-		return entity.Product{}, err
+		return entity.Url{}, err
 	}
 	output := model.ToEntity()
 	return output, nil
