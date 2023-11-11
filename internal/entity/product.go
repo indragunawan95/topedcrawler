@@ -40,6 +40,11 @@ type ProductModel struct {
 	StoreName   string    `gorm:"type:varchar(100);not null"`
 }
 
+// TableName overrides the table name used by ProductModel to `products`
+func (ProductModel) TableName() string {
+	return "products"
+}
+
 // ToDomain converts the persistence model to the domain entity
 func (p ProductModel) ToEntity() Product {
 	return Product{

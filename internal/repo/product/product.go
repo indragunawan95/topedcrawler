@@ -3,6 +3,7 @@ package product
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/indragunawan95/topedcrawler/internal/entity"
 	"gorm.io/gorm"
 )
@@ -18,6 +19,7 @@ func New(db *gorm.DB) *ProductRepo {
 }
 
 func (pr ProductRepo) CreateProduct(ctx context.Context, input entity.Product) (entity.Product, error) {
+	input.ID = uuid.New().String()
 	model := input.ToModel()
 
 	err := pr.db.WithContext(ctx).Create(&model).Error
