@@ -35,3 +35,11 @@ docker compose up -d
 ```
 go run cmd/app/main.go  
 ```
+
+## Extra
+Csv file stored in `data.csv`
+Known issue, can't be solved because had no time:
+- bug `failed to scroll page: Execution context was destroyed, most likely because of a navigation`
+- retry mechanism
+- Making Url Unique
+- automated test/unit test
