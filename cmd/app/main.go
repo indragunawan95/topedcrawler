@@ -7,9 +7,15 @@ import (
 
 	"github.com/indragunawan95/topedcrawler/files/config"
 	"github.com/indragunawan95/topedcrawler/internal/entity"
+	productRepo "github.com/indragunawan95/topedcrawler/internal/repo/product"
+	scrapperRepo "github.com/indragunawan95/topedcrawler/internal/repo/scrapper"
 	urlRepo "github.com/indragunawan95/topedcrawler/internal/repo/url"
+	scrapperUsecase "github.com/indragunawan95/topedcrawler/internal/usecase/scrappermanager"
+
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+
+	"github.com/playwright-community/playwright-go"
 )
 
 func main() {
@@ -24,17 +30,24 @@ func main() {
 	}
 
 	// Try add URL
-	// prodRepo := productRepo.New(db)
+	prodRepo := productRepo.New(db)
 	// productUsecase(prodRepo)
-	repo := urlRepo.New(db)
-	url, err := repo.CreateUrl(context.Background(), entity.Url{
-		Url: "https://www.tokopedia.com/wahanaacesories/hp-redmi-note-9-smartphone-xiaomi-mi-note-9-ram-4-64gb-garansi-resmi-hijau",
+	urlRepo := urlRepo.New(db)
+	pw, err := playwright.Run()
+	if err != nil {
+		log.Fatalf("could not start playwright: %v", err)
+	}
+	browser, err := pw.Chromium.Launch(playwright.BrowserTypeLaunchOptions{
+		Headless: playwright.Bool(false), // Set to false to run in non-headless mode
 	})
 	if err != nil {
-		log.Fatal("Error:", err)
+		log.Fatalf("could not launch browser: %v", err)
 	}
-	fmt.Println(url)
+	scrapperRepo := scrapperRepo.New(browser)
 
+	scrapperUc := scrapperUsecase.New(prodRepo, urlRepo, scrapperRepo)
+	err = scrapperUc.GetAllProductLinks(context.Background(), 100)
+	fmt.Println(err)
 }
 
 func dbSetup(cfg *config.Config) (*gorm.DB, error) {
