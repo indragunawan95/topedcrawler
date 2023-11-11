@@ -7,6 +7,7 @@ import (
 
 	"github.com/indragunawan95/topedcrawler/files/config"
 	"github.com/indragunawan95/topedcrawler/internal/entity"
+	csvRepo "github.com/indragunawan95/topedcrawler/internal/repo/csv"
 	productRepo "github.com/indragunawan95/topedcrawler/internal/repo/product"
 	scrapperRepo "github.com/indragunawan95/topedcrawler/internal/repo/scrapper"
 	urlRepo "github.com/indragunawan95/topedcrawler/internal/repo/url"
@@ -29,10 +30,6 @@ func main() {
 		log.Fatal("Error:", err)
 	}
 
-	// Try add URL
-	prodRepo := productRepo.New(db)
-	// productUsecase(prodRepo)
-	urlRepo := urlRepo.New(db)
 	pw, err := playwright.Run()
 	if err != nil {
 		log.Fatalf("could not start playwright: %v", err)
@@ -43,11 +40,25 @@ func main() {
 	if err != nil {
 		log.Fatalf("could not launch browser: %v", err)
 	}
-	scrapperRepo := scrapperRepo.New(browser)
+	numWorkers := cfg.App.NumWorkers
 
-	scrapperUc := scrapperUsecase.New(prodRepo, urlRepo, scrapperRepo)
-	err = scrapperUc.GetAllProductLinks(context.Background(), 100)
-	fmt.Println(err)
+	productRepo := productRepo.New(db)
+	urlRepo := urlRepo.New(db)
+	scrapperRepo := scrapperRepo.New(browser)
+	csvRepo := csvRepo.New("data.csv")
+
+	scrapperUc := scrapperUsecase.New(productRepo, urlRepo, scrapperRepo, csvRepo, numWorkers)
+	// Get Seed Url
+	err = scrapperUc.GetAllProductLinks(context.Background(), 10)
+	if err != nil {
+		log.Fatalf("Error scraping product links: %v", err)
+	}
+
+	// Call the scrapper to process product details.
+	err = scrapperUc.ProductDetailsScrapper()
+	if err != nil {
+		log.Fatalf("Error scraping product details: %v", err)
+	}
 }
 
 func dbSetup(cfg *config.Config) (*gorm.DB, error) {

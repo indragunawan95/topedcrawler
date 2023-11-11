@@ -6,6 +6,7 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"sync"
 	"unicode"
 
 	"github.com/indragunawan95/topedcrawler/internal/entity"
@@ -19,6 +20,10 @@ type ProductRepoItf interface {
 	CreateProduct(ctx context.Context, input entity.Product) (entity.Product, error)
 }
 
+type CSVRepoItf interface {
+	SaveProductsToCSV(ctx context.Context, products []entity.Product) error
+}
+
 type UrlRepoItf interface {
 	CreateUrls(ctx context.Context, inputs []entity.Url) ([]entity.Url, error)
 	GetUrls(ctx context.Context) ([]entity.Url, error)
@@ -28,6 +33,8 @@ type UrlRepoItf interface {
 type ScrapperRepoItf interface {
 	LaunchTab() error
 	OpenPage(url string) error
+	ScrollPage() error
+	ClosePage() error
 	GetProductTitle() (string, error)
 	GetProductDescription() (string, error)
 	GetProductStoreName() (string, error)
@@ -41,15 +48,18 @@ type Usecase struct {
 	scrapperRepo ScrapperRepoItf
 	productRepo  ProductRepoItf
 	urlRepo      UrlRepoItf
-	urlsToScrape []string
+	csvRepo      CSVRepoItf
+	NumWorkers   int
 }
 
-func New(productRepo ProductRepoItf, urlRepo UrlRepoItf, scrapperRepo ScrapperRepoItf) *Usecase {
+func New(productRepo ProductRepoItf, urlRepo UrlRepoItf, scrapperRepo ScrapperRepoItf, csvRepo CSVRepoItf, numWorkers int) *Usecase {
 
 	return &Usecase{
 		productRepo:  productRepo,
 		urlRepo:      urlRepo,
 		scrapperRepo: scrapperRepo,
+		csvRepo:      csvRepo,
+		NumWorkers:   numWorkers,
 	}
 }
 
@@ -66,6 +76,10 @@ func (uc *Usecase) GetAllProductLinks(ctx context.Context, maxLinks int) error {
 		pageURL := fmt.Sprintf(BaseURL, pageIndex)
 		if err := uc.scrapperRepo.OpenPage(pageURL); err != nil {
 			return fmt.Errorf("failed to open page: %w", err)
+		}
+
+		if err := uc.scrapperRepo.ScrollPage(); err != nil {
+			return fmt.Errorf("failed to scroll page: %w", err)
 		}
 
 		links, err := uc.scrapperRepo.GetAllProductLinks()
@@ -98,23 +112,74 @@ func (uc *Usecase) ProductDetailsScrapper() error {
 		return fmt.Errorf("failed to get URLs: %w", err)
 	}
 
-	for _, urlEntity := range urls {
-		if err := uc.processUrl(urlEntity); err != nil {
-			log.Printf("Failed to process URL %s: %v\n", urlEntity.Url, err)
-			return err
+	// Create a channel to send URLs to be processed.
+	urlsChan := make(chan entity.Url)
+	// Create a channel to communicate errors from goroutines.
+	errChan := make(chan error, uc.NumWorkers)
+	// WaitGroup to wait for all goroutines to finish.
+	var wg sync.WaitGroup
+
+	// Start the specified number of worker goroutines.
+	for i := 0; i < uc.NumWorkers; i++ {
+		wg.Add(1)
+		go worker(&wg, urlsChan, errChan, uc)
+	}
+
+	// Send URLs to the channel for the workers to process.
+	go func() {
+		for _, urlEntity := range urls {
+			urlsChan <- urlEntity
+		}
+		close(urlsChan) // Close the channel to signal workers to stop.
+	}()
+
+	// Wait for all goroutines to complete and close the error channel.
+	go func() {
+		wg.Wait()
+		close(errChan)
+	}()
+
+	// Collect errors, if any.
+	var scrappingErrors []error
+	for e := range errChan {
+		if e != nil {
+			scrappingErrors = append(scrappingErrors, e)
 		}
 	}
 
+	if len(scrappingErrors) > 0 {
+		// Handle errors accordingly. For example, you could log them or retry failed operations.
+		// For now, just returning the first error.
+		return scrappingErrors[0]
+	}
+
 	return nil
+}
+
+// Worker function that processes URLs from the urlsChan and sends errors to errChan.
+func worker(wg *sync.WaitGroup, urlsChan <-chan entity.Url, errChan chan<- error, uc *Usecase) {
+	defer wg.Done()
+	for url := range urlsChan {
+		if err := uc.processUrl(url); err != nil {
+			errChan <- err
+			// For now, let's just log the error and move on to the next URL.
+			log.Printf("Error processing URL %s: %v", url.Url, err)
+		}
+	}
 }
 
 func (uc *Usecase) processUrl(url entity.Url) error {
 	if err := uc.scrapperRepo.LaunchTab(); err != nil {
 		return fmt.Errorf("failed to launch tab: %w", err)
 	}
+	defer uc.scrapperRepo.ClosePage()
 
 	if err := uc.scrapperRepo.OpenPage(url.Url); err != nil {
 		return fmt.Errorf("failed to open product detail page: %w", err)
+	}
+
+	if err := uc.scrapperRepo.ScrollPage(); err != nil {
+		return fmt.Errorf("failed to scroll page: %w", err)
 	}
 
 	product, err := uc.scrapeProductDetails()
@@ -130,6 +195,12 @@ func (uc *Usecase) processUrl(url entity.Url) error {
 	err = uc.urlRepo.MarkUrlAsScrapped(context.Background(), url.ID)
 	if err != nil {
 		return fmt.Errorf("failed to update scrapped: %w", err)
+	}
+
+	// append the product details to the CSV file.
+	err = uc.csvRepo.SaveProductsToCSV(context.Background(), []entity.Product{product})
+	if err != nil {
+		return fmt.Errorf("failed to save product to CSV: %w", err)
 	}
 
 	log.Printf("Processed product: %s\n", product.Name)

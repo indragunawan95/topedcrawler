@@ -1,17 +1,5 @@
 package scrapper
 
-// struct
-
-// launch Tab
-
-// open product detail page
-
-// get product title using selector
-// get product description using selector
-// get product price using selector
-// get product rating using selector
-// get product image link using selector
-
 import (
 	"context"
 	"errors"
@@ -48,10 +36,16 @@ func (s *ScrapperRepo) OpenPage(url string) error {
 	_, err := s.page.Goto(url, playwright.PageGotoOptions{
 		WaitUntil: playwright.WaitUntilStateLoad,
 	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
 
+func (s *ScrapperRepo) ScrollPage() error {
 	// Scroll to the bottom of the page to trigger lazy loading.
 	// This JavaScript snippet will scroll to the bottom.
-	_, err = s.page.Evaluate("window.scrollTo(0, document.body.scrollHeight)")
+	_, err := s.page.Evaluate("window.scrollTo(0, document.body.scrollHeight)")
 	if err != nil {
 		return err
 	}
@@ -64,7 +58,11 @@ func (s *ScrapperRepo) OpenPage(url string) error {
 	if err != nil {
 		return err
 	}
-	return err
+	return nil
+}
+
+func (s *ScrapperRepo) ClosePage() error {
+	return s.page.Close()
 }
 
 func (s *ScrapperRepo) GetProductTitle() (string, error) {
