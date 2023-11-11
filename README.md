@@ -16,6 +16,8 @@ export DB_PORT=5432
 export DB_USERNAME=postgres
 export DB_PASSWORD=postgres
 export DB_NAME=postgres
+export NUM_WORKERS=2
+export NUM_PRODUCTS=100
 ```
 
 2. Source the environment variable to terminal session

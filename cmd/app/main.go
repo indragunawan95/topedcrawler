@@ -35,12 +35,13 @@ func main() {
 		log.Fatalf("could not start playwright: %v", err)
 	}
 	browser, err := pw.Chromium.Launch(playwright.BrowserTypeLaunchOptions{
-		Headless: playwright.Bool(false), // Set to false to run in non-headless mode
+		Headless: playwright.Bool(true), // Set to false to run in non-headless mode
 	})
 	if err != nil {
 		log.Fatalf("could not launch browser: %v", err)
 	}
 	numWorkers := cfg.App.NumWorkers
+	numProducts := cfg.App.NumProducts
 
 	productRepo := productRepo.New(db)
 	urlRepo := urlRepo.New(db)
@@ -49,7 +50,7 @@ func main() {
 
 	scrapperUc := scrapperUsecase.New(productRepo, urlRepo, scrapperRepo, csvRepo, numWorkers)
 	// Get Seed Url
-	err = scrapperUc.GetAllProductLinks(context.Background(), 10)
+	err = scrapperUc.GetAllProductLinks(context.Background(), numProducts)
 	if err != nil {
 		log.Fatalf("Error scraping product links: %v", err)
 	}

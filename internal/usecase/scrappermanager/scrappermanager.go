@@ -13,7 +13,8 @@ import (
 )
 
 const (
-	BaseURL = "https://www.tokopedia.com/p/handphone-tablet/handphone?ob=23&page=%d"
+	BaseURL        = "https://www.tokopedia.com/p/handphone-tablet/handphone?ob=23&page=%d"
+	excludedPrefix = "https://ta.tokopedia.com/"
 )
 
 type ProductRepoItf interface {
@@ -88,6 +89,9 @@ func (uc *Usecase) GetAllProductLinks(ctx context.Context, maxLinks int) error {
 		}
 
 		for _, link := range links {
+			if strings.HasPrefix(link, excludedPrefix) {
+				continue // Skip the links with the excluded prefix
+			}
 			if len(urls) < maxLinks {
 				urls = append(urls, entity.Url{Url: link})
 			} else {
